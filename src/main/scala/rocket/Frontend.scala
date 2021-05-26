@@ -20,13 +20,17 @@ class FrontendReq(implicit p: Parameters) extends CoreBundle()(p) {
   val speculative = Bool()
 }
 
-class FrontendExceptions extends Bundle {
+class FrontendExceptions(implicit p: Parameters) extends CoreBundle()(p) {
   val pf = new Bundle {
+    val inst = Bool()
+  }
+  val gf = new Bundle {
     val inst = Bool()
   }
   val ae = new Bundle {
     val inst = Bool()
   }
+  val gpaddr = UInt(width = vaddrBitsExtended)
 }
 
 class FrontendResp(implicit p: Parameters) extends CoreBundle()(p) {
@@ -112,7 +116,7 @@ class FrontendModule(outer: Frontend) extends LazyModuleImp(outer)
   val s2_btb_resp_bits = Reg(new BTBResp)
   val s2_btb_taken = s2_btb_resp_valid && s2_btb_resp_bits.taken
   val s2_tlb_resp = Reg(tlb.io.resp)
-  val s2_xcpt = s2_tlb_resp.ae.inst || s2_tlb_resp.pf.inst
+  val s2_xcpt = s2_tlb_resp.ae.inst || s2_tlb_resp.pf.inst || s2_tlb_resp.gf.inst
   val s2_speculative = Reg(init=Bool(false))
   val s2_partial_insn_valid = RegInit(false.B)
   val s2_partial_insn = Reg(UInt(width = coreInstBits))
@@ -149,6 +153,8 @@ class FrontendModule(outer: Frontend) extends LazyModuleImp(outer)
   tlb.io.req.bits.vaddr := s1_pc
   tlb.io.req.bits.passthrough := Bool(false)
   tlb.io.req.bits.size := log2Ceil(coreInstBytes*fetchWidth)
+  tlb.io.req.bits.prv := io.ptw.status.prv
+  tlb.io.req.bits.v := io.ptw.status.v
   tlb.io.sfence := io.cpu.sfence
   tlb.io.kill := !s2_valid
 

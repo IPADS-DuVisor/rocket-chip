@@ -182,13 +182,15 @@ class DCacheModule(outer: DCache) extends HellaCacheModule(outer) {
     s0_tlb_req.vaddr := s0_req.addr
     s0_tlb_req.size := s0_req.size
     s0_tlb_req.cmd := s0_req.cmd
+    s0_tlb_req.prv := s0_req.dprv
+    s0_tlb_req.v := s0_req.dv
   }
   val s1_tlb_req = RegEnable(s0_tlb_req, s0_clk_en || tlb_port.req.valid)
 
   val s1_read = isRead(s1_req.cmd)
   val s1_write = isWrite(s1_req.cmd)
   val s1_readwrite = s1_read || s1_write
-  val s1_sfence = s1_req.cmd === M_SFENCE
+  val s1_sfence = s1_req.cmd === M_SFENCE || s1_req.cmd === M_HFENCEV || s1_req.cmd === M_HFENCEG
   val s1_flush_line = s1_req.cmd === M_FLUSH_ALL && s1_req.size(0)
   val s1_flush_valid = Reg(Bool())
   val s1_waw_hazard = Wire(Bool())
@@ -259,6 +261,8 @@ class DCacheModule(outer: DCache) extends HellaCacheModule(outer) {
   tlb.io.sfence.bits.rs2 := s1_req.size(1)
   tlb.io.sfence.bits.asid := io.cpu.s1_data.data
   tlb.io.sfence.bits.addr := s1_req.addr
+  tlb.io.sfence.bits.hv := s1_req.cmd === M_HFENCEV
+  tlb.io.sfence.bits.hg := s1_req.cmd === M_HFENCEG
 
   tlb_port.req.ready := clock_en_reg
   tlb_port.s1_resp := tlb.io.resp
@@ -301,7 +305,7 @@ class DCacheModule(outer: DCache) extends HellaCacheModule(outer) {
   assert(!(s1_valid_masked && s1_req.cmd === M_PWR) || (s1_mask_xwr | ~io.cpu.s1_data.mask).andR)
 
   val s2_valid = Reg(next=s1_valid_masked && !s1_sfence, init=Bool(false))
-  val s2_valid_no_xcpt = s2_valid && !io.cpu.s2_xcpt.asUInt.orR
+  val s2_valid_no_xcpt = s2_valid && !(io.cpu.s2_xcpt.ma.asUInt.orR || io.cpu.s2_xcpt.pf.asUInt.orR || io.cpu.s2_xcpt.gf.asUInt.orR || io.cpu.s2_xcpt.ae.asUInt.orR)
   val s2_probe = Reg(next=s1_probe, init=Bool(false))
   val releaseInFlight = s1_probe || s2_probe || release_state =/= s_ready
   val s2_not_nacked_in_s1 = RegNext(!s1_nack)
