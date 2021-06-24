@@ -990,6 +990,15 @@ object CSRs {
   val vstval = 0x243
   val vsip = 0x244
   val vsatp = 0x280
+  val huvsstatus = 0x400
+  val huvsie = 0x404
+  val huvstvec = 0x405
+  val huvsscratch = 0x440
+  val huvsepc = 0x441
+  val huvscause = 0x442
+  val huvstval = 0x443
+  val huvsip = 0x444
+  val huvsatp = 0x480
   val hstatus = 0x600
   val hedeleg = 0x602
   val hideleg = 0x603

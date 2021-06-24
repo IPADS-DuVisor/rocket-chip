@@ -741,7 +741,6 @@ class CSRFile(
 
   if (usingHypervisor) {
     read_mapping += CSRs.mtinst -> 0.U
-    read_mapping += CSRs.mtval2 -> 0.U
     read_mapping += CSRs.mtval2 -> reg_mtval2
 
     read_mapping += CSRs.hstatus -> reg_hstatus.asUInt()
@@ -754,7 +753,6 @@ class CSRFile(
     read_mapping += CSRs.hvip -> read_hvip
     read_mapping += CSRs.hgeie -> reg_hgeie
     read_mapping += CSRs.hgeip -> reg_hgeip
-    read_mapping += CSRs.htval -> 0.U
     read_mapping += CSRs.htval -> reg_htval
     read_mapping += CSRs.htinst -> 0.U
 
@@ -777,6 +775,16 @@ class CSRFile(
     read_mapping += CSRs.vsatp -> reg_vsatp.asUInt
     read_mapping += CSRs.vsepc -> read_vsepc
     read_mapping += CSRs.vstvec -> read_vstvec
+
+    read_mapping += CSRs.huvsstatus -> read_vsstatus
+    read_mapping += CSRs.huvsip -> read_vsip
+    read_mapping += CSRs.huvsie -> read_vsie
+    read_mapping += CSRs.huvsscratch -> reg_vsscratch
+    read_mapping += CSRs.huvscause -> reg_vscause
+    read_mapping += CSRs.huvstval -> reg_vstval.sextTo(xLen)
+    read_mapping += CSRs.huvsatp -> reg_vsatp.asUInt
+    read_mapping += CSRs.huvsepc -> read_vsepc
+    read_mapping += CSRs.huvstvec -> read_vstvec
   }
 
   // mimpid, marchid, and mvendorid are 0 unless overridden by customCSRs
@@ -1314,7 +1322,7 @@ class CSRFile(
       when (decoded_addr(CSRs.hcounteren)) { reg_hcounteren := wdata }
       when (decoded_addr(CSRs.htval))    { reg_htval := wdata(vaddrBits-1,0) }
 
-      when (decoded_addr(CSRs.vsstatus)) {
+      when (decoded_addr(CSRs.vsstatus) || decoded_addr(CSRs.huvsstatus)) {
         val new_vsstatus = new MStatus().fromBits(wdata)
         reg_vsstatus.sie := new_vsstatus.sie
         reg_vsstatus.spie := new_vsstatus.spie
@@ -1325,11 +1333,11 @@ class CSRFile(
         reg_vsstatus.vs := formVS(new_vsstatus.vs)
         if (usingRoCC) reg_vsstatus.xs := Fill(2, new_vsstatus.xs.orR)
       }
-      when (decoded_addr(CSRs.vsip)) {
+      when (decoded_addr(CSRs.vsip) || decoded_addr(CSRs.huvsip)) {
         val new_vsip = new MIP().fromBits((read_hip & ~read_hideleg) | ((wdata << 1) & read_hideleg))
         reg_mip.vssip := new_vsip.vssip
       }
-      when (decoded_addr(CSRs.vsatp)) {
+      when (decoded_addr(CSRs.vsatp) || decoded_addr(CSRs.huvsatp)) {
         val new_vsatp = new PTBR().fromBits(wdata)
         val mode_ok = new_vsatp.mode.isOneOf(satp_valid_modes.map(_.U))
         when (mode_ok) {
@@ -1340,12 +1348,12 @@ class CSRFile(
         }
         if (asIdBits > 0) reg_vsatp.asid := new_vsatp.asid(asIdBits-1,0)
       }
-      when (decoded_addr(CSRs.vsie))      { reg_mie := (reg_mie & ~read_hideleg) | ((wdata << 1) & read_hideleg) }
-      when (decoded_addr(CSRs.vsscratch)) { reg_vsscratch := wdata }
-      when (decoded_addr(CSRs.vsepc))     { reg_vsepc := formEPC(wdata) }
-      when (decoded_addr(CSRs.vstvec))    { reg_vstvec := wdata }
-      when (decoded_addr(CSRs.vscause))   { reg_vscause := wdata & scause_mask }
-      when (decoded_addr(CSRs.vstval))    { reg_vstval := wdata(vaddrBitsExtended-1,0) }
+      when (decoded_addr(CSRs.vsie) || decoded_addr(CSRs.huvsie))      { reg_mie := (reg_mie & ~read_hideleg) | ((wdata << 1) & read_hideleg) }
+      when (decoded_addr(CSRs.vsscratch) || decoded_addr(CSRs.huvsscratch)) { reg_vsscratch := wdata }
+      when (decoded_addr(CSRs.vsepc) || decoded_addr(CSRs.huvsepc))     { reg_vsepc := formEPC(wdata) }
+      when (decoded_addr(CSRs.vstvec) || decoded_addr(CSRs.huvstvec))    { reg_vstvec := wdata }
+      when (decoded_addr(CSRs.vscause) || decoded_addr(CSRs.huvscause))   { reg_vscause := wdata & scause_mask }
+      when (decoded_addr(CSRs.vstval) || decoded_addr(CSRs.huvstval))    { reg_vstval := wdata(vaddrBitsExtended-1,0) }
     }
     if (usingUser) {
       when (decoded_addr(CSRs.mcounteren)) { reg_mcounteren := wdata }
