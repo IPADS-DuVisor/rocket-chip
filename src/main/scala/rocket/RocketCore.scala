@@ -462,12 +462,12 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
       ex_ctrl.alu_dw := DW_XPR
       ex_ctrl.sel_alu1 := A1_RS1 // badaddr := instruction
       ex_ctrl.sel_alu2 := A2_ZERO
-      when (id_xcpt1.asUInt.orR) { // badaddr := PC+2
+      when (id_xcpt1.pf.asUInt.orR || id_xcpt1.gf.asUInt.orR || id_xcpt1.ae.asUInt.orR) { // badaddr := PC+2
         ex_ctrl.sel_alu1 := A1_PC
         ex_ctrl.sel_alu2 := A2_SIZE
         ex_reg_rvc := true
       }
-      when (bpu.io.xcpt_if || id_xcpt0.asUInt.orR) { // badaddr := PC
+      when (bpu.io.xcpt_if || id_xcpt0.pf.asUInt.orR || id_xcpt0.gf.asUInt.orR || id_xcpt0.ae.asUInt.orR) { // badaddr := PC
         ex_ctrl.sel_alu1 := A1_PC
         ex_ctrl.sel_alu2 := A2_ZERO
       }

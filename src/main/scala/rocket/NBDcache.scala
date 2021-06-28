@@ -701,7 +701,7 @@ class NonBlockingDCacheModule(outer: NonBlockingDCache) extends HellaCacheModule
   val s1_clk_en = Reg(Bool())
   val s1_sfence = s1_req.cmd === M_SFENCE
 
-  val s2_valid = Reg(next=s1_valid_masked && !s1_sfence, init=Bool(false)) && !io.cpu.s2_xcpt.asUInt.orR
+  val s2_valid = Reg(next=s1_valid_masked && !s1_sfence, init=Bool(false)) && !(io.cpu.s2_xcpt.ma.asUInt.orR || io.cpu.s2_xcpt.pf.asUInt.orR || io.cpu.s2_xcpt.gf.asUInt.orR || io.cpu.s2_xcpt.ae.asUInt.orR)
   val s2_req = Reg(io.cpu.req.bits)
   val s2_replay = Reg(next=s1_replay, init=Bool(false)) && s2_req.cmd =/= M_FLUSH_ALL
   val s2_recycle = Wire(Bool())
