@@ -65,7 +65,7 @@ class TLBResp(implicit p: Parameters) extends CoreBundle()(p) {
 class TLBEntryData(implicit p: Parameters) extends CoreBundle()(p) {
   val ppn = UInt(width = ppnBits)
   val v = Bool()
-  // val gppn = UInt(width = vpnBitsExtended)
+  val gppn = UInt(width = vpnBitsExtended)
   val vstage1 = Bool()
   val vstage2 = Bool()
   val u = Bool()
@@ -136,34 +136,34 @@ class TLBEntry(val nSectors: Int, val superpage: Boolean, val superpageOnly: Boo
       valid(idx) && virtualMatch(idx) && sectorTagMatch(vpn)
     }
   }
-  def ppn(vpn: UInt, data: TLBEntryData) = {
-    val supervisorVPNBits = pgLevels * pgLevelBits
-    if (superpage && usingVM) {
-      var res = data.ppn >> pgLevelBits*(pgLevels - 1)
-      for (j <- 1 until pgLevels) {
-        val ignore = level < j || superpageOnly && j == pgLevels - 1
-        res = Cat(res, (Mux(ignore, vpn, 0.U) | data.ppn)(supervisorVPNBits - j*pgLevelBits - 1, supervisorVPNBits - (j + 1)*pgLevelBits))
-      }
-      res
-    } else {
-      data.ppn
-    }
-  }
-
-  // def ppn(vpn: UInt, data: TLBEntryData, isGppn: Boolean = false) = {
+  // def ppn(vpn: UInt, data: TLBEntryData) = {
   //   val supervisorVPNBits = pgLevels * pgLevelBits
-  //   val ppn = if(isGppn) data.gppn else data.ppn
   //   if (superpage && usingVM) {
-  //     var res = ppn >> pgLevelBits*(pgLevels - 1)
+  //     var res = data.ppn >> pgLevelBits*(pgLevels - 1)
   //     for (j <- 1 until pgLevels) {
   //       val ignore = level < j || superpageOnly && j == pgLevels - 1
-  //       res = Cat(res, (Mux(ignore, vpn, 0.U) | ppn)(supervisorVPNBits - j*pgLevelBits - 1, supervisorVPNBits - (j + 1)*pgLevelBits))
+  //       res = Cat(res, (Mux(ignore, vpn, 0.U) | data.ppn)(supervisorVPNBits - j*pgLevelBits - 1, supervisorVPNBits - (j + 1)*pgLevelBits))
   //     }
   //     res
   //   } else {
-  //     ppn
+  //     data.ppn
   //   }
   // }
+
+  def ppn(vpn: UInt, data: TLBEntryData, isGppn: Boolean = false) = {
+    val supervisorVPNBits = pgLevels * pgLevelBits
+    val ppn = if(isGppn) data.gppn else data.ppn
+    if (superpage && usingVM) {
+      var res = ppn >> pgLevelBits*(pgLevels - 1)
+      for (j <- 1 until pgLevels) {
+        val ignore = level < j || superpageOnly && j == pgLevels - 1
+        res = Cat(res, (Mux(ignore, vpn, 0.U) | ppn)(supervisorVPNBits - j*pgLevelBits - 1, supervisorVPNBits - (j + 1)*pgLevelBits))
+      }
+      res
+    } else {
+      ppn
+    }
+  }
 
   def insert(tag: UInt, level: UInt, entry: TLBEntryData): Unit = {
     this.tag := tag
@@ -278,15 +278,15 @@ class TLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge: T
   val hitsVec = all_entries.map(vm_enabled && _.hit(vpn, stage1_en && priv_v, stage2_en))
   val real_hits = hitsVec.asUInt
   val hits = Cat(!vm_enabled, real_hits)
-  val xcpt_gppn = Reg(UInt(width = vpnBitsExtended))
+  // val xcpt_gppn = Reg(UInt(width = vpnBitsExtended))
 
   // permission bit arrays
   when (do_refill) {
-    xcpt_gppn := io.ptw.resp.bits.gppn
+    // xcpt_gppn := io.ptw.resp.bits.gppn
     val pte = io.ptw.resp.bits.pte
     val newEntry = Wire(new TLBEntryData)
     newEntry.ppn := pte.ppn
-    // newEntry.gppn := io.ptw.resp.bits.gppn
+    newEntry.gppn := io.ptw.resp.bits.gppn
     newEntry.v := r_vstage1_en || r_stage2_en
     newEntry.vstage1 := r_vstage1_en
     newEntry.vstage2 := r_stage2_en
@@ -331,7 +331,7 @@ class TLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge: T
   val entries = all_entries.map(_.getData(vpn))
   val normal_entries = entries.take(ordinary_entries.size)
   val ppn = Mux1H(hitsVec :+ !vm_enabled, (all_entries zip entries).map{ case (entry, data) => entry.ppn(vpn, data) } :+ vpn(ppnBits-1, 0))
-  // val gppn = Mux1H(hitsVec :+ !vm_enabled, (all_entries zip entries).map{ case (entry, data) => entry.ppn(vpn, data, true) } :+ io.req.bits.vaddr(vaddrBitsExtended-1, pgIdxBits))
+  val gppn = Mux1H(hitsVec :+ !vm_enabled, (all_entries zip entries).map{ case (entry, data) => entry.ppn(vpn, data, true) } :+ io.req.bits.vaddr(vaddrBitsExtended-1, pgIdxBits))
 
   val nPhysicalEntries = 1 + special_entry.size
   val ptw_ae_array = Cat(false.B, entries.map(_.ae).asUInt)
@@ -438,8 +438,8 @@ class TLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge: T
   io.resp.gf.ld := (bad_gpa && cmd_read) || (gf_ld_array & hits).orR
   io.resp.gf.st := (bad_gpa && cmd_write_perms) || (gf_st_array & hits).orR
   io.resp.gf.inst := bad_gpa || (gf_inst_array & hits).orR
-  // io.resp.gpaddr := Cat(gppn, io.req.bits.vaddr(pgIdxBits-1, 0))
-  io.resp.gpaddr := Cat(xcpt_gppn, io.req.bits.vaddr(pgIdxBits-1, 0))
+  io.resp.gpaddr := Cat(gppn, io.req.bits.vaddr(pgIdxBits-1, 0))
+  // io.resp.gpaddr := Cat(xcpt_gppn, io.req.bits.vaddr(pgIdxBits-1, 0))
   io.resp.ae.ld := (ae_ld_array & hits).orR
   io.resp.ae.st := (ae_st_array & hits).orR
   io.resp.ae.inst := (~px_array & hits).orR
