@@ -510,6 +510,15 @@ class CSRFile(
   val reg_htval = Reg(UInt(width = vaddrBitsExtended))
   val read_hie = reg_mie & hs_delegable_interrupts
 
+  val (reg_utvec, read_utvec) = {
+      val reg = Reg(UInt(width = vaddrBits))
+      (reg, formTVec(reg).sextTo(xLen))
+  }
+  val reg_uscratch = Reg(Bits(width = xLen))
+  val reg_uepc = Reg(UInt(width = vaddrBitsExtended))
+  val reg_ucause = Reg(Bits(width = xLen))
+  val reg_utval = Reg(UInt(width = vaddrBitsExtended))
+
   val (reg_vstvec, read_vstvec) = {
       val reg = Reg(UInt(width = vaddrBits))
       (reg, formTVec(reg).sextTo(xLen))
@@ -785,6 +794,19 @@ class CSRFile(
     read_mapping += CSRs.huvsatp -> reg_vsatp.asUInt
     read_mapping += CSRs.huvsepc -> read_vsepc
     read_mapping += CSRs.huvstvec -> read_vstvec
+
+    val read_uie = 0.U
+    val read_uip = 0.U
+    val read_ustatus = 0.U
+
+    read_mapping += CSRs.ustatus -> read_ustatus
+    read_mapping += CSRs.uip -> read_uip
+    read_mapping += CSRs.uie -> read_uie
+    read_mapping += CSRs.uscratch -> reg_uscratch
+    read_mapping += CSRs.ucause -> reg_ucause
+    read_mapping += CSRs.utval -> reg_utval.sextTo(xLen)
+    read_mapping += CSRs.uepc -> readEPC(reg_uepc).sextTo(xLen)
+    read_mapping += CSRs.utvec -> read_utvec
   }
 
   // mimpid, marchid, and mvendorid are 0 unless overridden by customCSRs
@@ -1354,6 +1376,12 @@ class CSRFile(
       when (decoded_addr(CSRs.vstvec) || decoded_addr(CSRs.huvstvec))    { reg_vstvec := wdata }
       when (decoded_addr(CSRs.vscause) || decoded_addr(CSRs.huvscause))   { reg_vscause := wdata & scause_mask }
       when (decoded_addr(CSRs.vstval) || decoded_addr(CSRs.huvstval))    { reg_vstval := wdata(vaddrBitsExtended-1,0) }
+
+      when (decoded_addr(CSRs.uscratch)) { reg_uscratch := wdata }
+      when (decoded_addr(CSRs.uepc))     { reg_uepc := formEPC(wdata) }
+      when (decoded_addr(CSRs.utvec))    { reg_utvec := wdata }
+      when (decoded_addr(CSRs.ucause))   { reg_ucause := wdata & scause_mask }
+      when (decoded_addr(CSRs.utval))    { reg_utval := wdata(vaddrBitsExtended-1,0) }
     }
     if (usingUser) {
       when (decoded_addr(CSRs.mcounteren)) { reg_mcounteren := wdata }
