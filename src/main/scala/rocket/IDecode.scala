@@ -160,6 +160,8 @@ class HypervisorDecode(implicit val p: Parameters) extends DecodeConstants
 
     HFENCE_VVMA->List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_HFENCEV,  N,N,N,N,N,N,N,CSR.I,N,N,N,N),
     HFENCE_GVMA->List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_HFENCEG,  N,N,N,N,N,N,N,CSR.I,N,N,N,N),
+    HUFENCE_VVMA->List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_HFENCEV,  N,N,N,N,N,N,N,CSR.I,N,N,N,N),
+    HUFENCE_GVMA->List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO,A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_HFENCEG,  N,N,N,N,N,N,N,CSR.I,N,N,N,N),
 
     HLV_B ->    List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
     HLV_BU->    List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
@@ -171,7 +173,19 @@ class HypervisorDecode(implicit val p: Parameters) extends DecodeConstants
 
     HSV_B->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N),
     HSV_H->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N),
-    HSV_W->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N))
+    HSV_W->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N),
+
+    HULV_B ->    List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
+    HULV_BU->    List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
+    HULV_H ->    List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
+    HULV_HU->    List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
+    HULVX_HU->   List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_HLVX,     N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
+    HULV_W->     List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
+    HULVX_WU->   List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_HLVX,     N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
+
+    HUSV_B->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N),
+    HUSV_H->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N),
+    HUSV_W->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N))
 }
 
 class DebugDecode(implicit val p: Parameters) extends DecodeConstants
@@ -221,7 +235,10 @@ class Hypervisor64Decode(implicit val p: Parameters) extends DecodeConstants
   val table: Array[(BitPat, List[BitPat])] = Array(
     HLV_D->     List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
     HSV_D->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N),
-    HLV_WU->    List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N))
+    HLV_WU->    List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
+    HULV_D->    List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N),
+    HUSV_D->    List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N),
+    HULV_WU->   List(Y,N,N,N,N,N,N,Y,N,A2_ZERO, A1_RS1, IMM_X, DW_XPR, FN_ADD, Y,M_XRD,      N,N,N,N,N,N,Y,CSR.I,N,N,N,N))
 }
 
 class MDecode(pipelinedMul: Boolean)(implicit val p: Parameters) extends DecodeConstants

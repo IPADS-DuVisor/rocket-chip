@@ -753,10 +753,12 @@ class CSRFile(
     read_mapping += CSRs.mtval2 -> reg_mtval2
 
     read_mapping += CSRs.hstatus -> reg_hstatus.asUInt()
+    read_mapping += CSRs.hustatus -> reg_hstatus.asUInt()
     read_mapping += CSRs.hedeleg -> read_hedeleg
     read_mapping += CSRs.hideleg -> read_hideleg
     read_mapping += CSRs.hcounteren-> reg_hcounteren
     read_mapping += CSRs.hgatp -> reg_hgatp.asUInt
+    read_mapping += CSRs.hugatp -> reg_hgatp.asUInt
     read_mapping += CSRs.hip -> read_hip
     read_mapping += CSRs.hie -> read_hie
     read_mapping += CSRs.hvip -> read_hvip
@@ -832,7 +834,8 @@ class CSRFile(
   val wdata = readModifyWriteCSR(io.rw.cmd, io.rw.rdata, io.rw.wdata)
 
   val system_insn = io.rw.cmd === CSR.I
-  val hlsv = Seq(HLV_B, HLV_BU, HLV_H, HLV_HU, HLV_W, HLV_WU, HLV_D, HSV_B, HSV_H, HSV_W, HSV_D, HLVX_HU, HLVX_WU)
+  val hlsv = Seq(HLV_B, HLV_BU, HLV_H, HLV_HU, HLV_W, HLV_WU, HLV_D, HSV_B, HSV_H, HSV_W, HSV_D, HLVX_HU, HLVX_WU, 
+                HULV_B, HULV_BU, HULV_H, HULV_HU, HULV_W, HULV_WU, HULV_D, HUSV_B, HUSV_H, HUSV_W, HUSV_D, HULVX_HU, HULVX_WU)
   val decode_table = Seq(        SCALL->       List(Y,N,N,N,N,N,N,N),
                                  SBREAK->      List(N,Y,N,N,N,N,N,N),
                                  MRET->        List(N,N,Y,N,N,N,N,N),
@@ -845,6 +848,8 @@ class CSRFile(
     usingVM.option(              SFENCE_VMA->  List(N,N,N,N,N,Y,N,N)) ++
     usingHypervisor.option(      HFENCE_VVMA-> List(N,N,N,N,N,N,Y,N)) ++
     usingHypervisor.option(      HFENCE_GVMA-> List(N,N,N,N,N,N,Y,N)) ++
+    usingHypervisor.option(      HUFENCE_VVMA->List(N,N,N,N,N,N,Y,N)) ++
+    usingHypervisor.option(      HUFENCE_GVMA->List(N,N,N,N,N,N,Y,N)) ++
     (if (usingHypervisor)        hlsv.map(_->  List(N,N,N,N,N,N,N,Y)) else Seq())
   val insn_call :: insn_break :: insn_ret :: insn_cease :: insn_wfi :: _ :: _ :: _ :: Nil =
     DecodeLogic(io.rw.addr << 20, decode_table(0)._2.map(x=>X), decode_table).map(system_insn && _.asBool)
@@ -871,7 +876,7 @@ class CSRFile(
     io_dec.vector_illegal := io.status.vs === 0 || reg_mstatus.v && reg_vsstatus.vs === 0 || !reg_misa('v'-'a')
     io_dec.fp_csr := decodeFast(fp_csrs.keys.toList)
     io_dec.rocc_illegal := io.status.xs === 0 || reg_mstatus.v && reg_vsstatus.vs === 0 || !reg_misa('x'-'a')
-    val csr_addr_legal = reg_mstatus.prv >= CSR.mode(addr) ||
+    val csr_addr_legal = reg_mstatus.prv >= CSR.mode(addr) || is_hlsv || is_hfence 
       usingHypervisor && !reg_mstatus.v && reg_mstatus.prv === PRV.S && CSR.mode(addr) === PRV.H
     val csr_exists = decodeAny(read_mapping)
     io_dec.read_illegal := !csr_addr_legal ||
@@ -1319,9 +1324,20 @@ class CSRFile(
         reg_hstatus.vtsr := new_hstatus.vtsr
         reg_hstatus.vsxl := new_hstatus.vsxl
       }
+      when (decoded_addr(CSRs.hustatus)) {
+        val new_hstatus = new HStatus().fromBits(wdata)
+        reg_hstatus.gva := new_hstatus.gva
+        reg_hstatus.spv := new_hstatus.spv
+        reg_hstatus.spvp := new_hstatus.spvp
+        reg_hstatus.vgein := new_hstatus.vgein
+        reg_hstatus.vtvm := new_hstatus.vtvm
+        reg_hstatus.vtw := new_hstatus.vtw
+        reg_hstatus.vtsr := new_hstatus.vtsr
+        reg_hstatus.vsxl := new_hstatus.vsxl
+      }
       when (decoded_addr(CSRs.hideleg))  { reg_hideleg := wdata }
       when (decoded_addr(CSRs.hedeleg))  { reg_hedeleg := wdata }
-      when (decoded_addr(CSRs.hgatp)) {
+      when (decoded_addr(CSRs.hgatp) || decoded_addr(CSRs.hugatp)) {
         val new_hgatp = new PTBR().fromBits(wdata)
         val valid_modes = 0 +: (minPgLevels to pgLevels).map(new_hgatp.pgLevelsToMode(_))
         when (new_hgatp.mode.isOneOf(valid_modes.map(_.U))) {
