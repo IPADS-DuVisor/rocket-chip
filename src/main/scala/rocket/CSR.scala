@@ -435,6 +435,14 @@ class CSRFile(
     hs_sup.asUInt
   }
 
+  val s_delegable_interrupts = {
+    val s_sup = Wire(new MIP().fromBits(0.U))
+    s_sup.usip := Bool(usingHypervisor)
+    s_sup.utip := Bool(usingHypervisor)
+    s_sup.ueip := Bool(usingHypervisor)
+    s_sup.asUInt
+  }
+
   val reg_debug = Reg(init=Bool(false))
   val reg_dpc = Reg(UInt(width = vaddrBitsExtended))
   val reg_dscratch = Reg(UInt(width = xLen))
@@ -797,7 +805,7 @@ class CSRFile(
     read_mapping += CSRs.huvsepc -> read_vsepc
     read_mapping += CSRs.huvstvec -> read_vstvec
 
-    val read_uie = 0.U
+    val read_uie = reg_mie & s_delegable_interrupts
     val read_uip = 0.U
     val read_ustatus = 0.U
 
@@ -809,6 +817,11 @@ class CSRFile(
     read_mapping += CSRs.utval -> reg_utval.sextTo(xLen)
     read_mapping += CSRs.uepc -> readEPC(reg_uepc).sextTo(xLen)
     read_mapping += CSRs.utvec -> read_utvec
+
+    // FIXME: huie should only be the same as hie, but now it contains uie
+    read_mapping += CSRs.huie -> (read_hie | read_uie)
+    read_mapping += CSRs.hucounteren-> reg_hcounteren
+    read_mapping += CSRs.hutval -> reg_htval
   }
 
   // mimpid, marchid, and mvendorid are 0 unless overridden by customCSRs
@@ -1398,6 +1411,13 @@ class CSRFile(
       when (decoded_addr(CSRs.utvec))    { reg_utvec := wdata }
       when (decoded_addr(CSRs.ucause))   { reg_ucause := wdata & scause_mask }
       when (decoded_addr(CSRs.utval))    { reg_utval := wdata(vaddrBitsExtended-1,0) }
+
+      // FIXME: huie should only be the same as hie, but now it contains uie
+      when (decoded_addr(CSRs.huie)) {
+        reg_mie := (reg_mie & ~(s_delegable_interrupts | hs_delegable_interrupts)) | (wdata & (s_delegable_interrupts | hs_delegable_interrupts))
+      }
+      when (decoded_addr(CSRs.hucounteren)) { reg_hcounteren := wdata }
+      when (decoded_addr(CSRs.hutval))    { reg_htval := wdata(vaddrBits-1,0) }  
     }
     if (usingUser) {
       when (decoded_addr(CSRs.mcounteren)) { reg_mcounteren := wdata }
