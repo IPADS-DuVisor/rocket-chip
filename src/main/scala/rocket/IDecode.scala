@@ -123,6 +123,12 @@ class IDecode(implicit val p: Parameters) extends DecodeConstants
     CSRRCI->    List(Y,N,N,N,N,N,N,N,N,A2_IMM, A1_ZERO,IMM_Z, DW_XPR,FN_ADD,   N,M_X,        N,N,N,N,N,N,Y,CSR.C,N,N,N,N))
 }
 
+class SpecialDecode(implicit val p: Parameters) extends DecodeConstants
+{
+  val table: Array[(BitPat, List[BitPat])] = Array(
+    RDTIME->    List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N))
+}
+
 class FenceIDecode(flushDCache: Boolean)(implicit val p: Parameters) extends DecodeConstants
 {
   private val (v, cmd) = if (flushDCache) (Y, BitPat(M_FLUSH_ALL)) else (N, M_X)
