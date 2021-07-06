@@ -410,7 +410,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     A1_PC -> ex_reg_pc.asSInt,
     A1_DEF -> ex_mtime.asSInt))
   val ex_op2 = MuxLookup(ex_ctrl.sel_alu2, 
-    Mux(ex_ctrl.sel_alu1 == A1_DEF, Cat(io.hartid, Fill(3, UInt(0))).asSInt, SInt(0)), 
+    Mux(ex_ctrl.sel_alu1 === A1_DEF, Cat(io.hartid, Fill(3, UInt(0))).asSInt, SInt(0)), 
     Seq(
     A2_RS2 -> ex_rs(1).asSInt,
     A2_IMM -> ex_imm,
@@ -897,9 +897,9 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.dmem.req.bits.size := ex_reg_mem_size
   io.dmem.req.bits.signed := !Mux(ex_reg_hls, ex_reg_inst(20), ex_reg_inst(14))
   io.dmem.req.bits.phys := Bool(false)
-  io.dmem.req.bits.addr := Mux(ex_ctrl.sel_alu1 == A1_DEF, alu.io.adder_out, encodeVirtualAddress(ex_rs(0), alu.io.adder_out))
+  io.dmem.req.bits.addr := Mux(ex_ctrl.sel_alu1 === A1_DEF, alu.io.adder_out, encodeVirtualAddress(ex_rs(0), alu.io.adder_out))
   io.dmem.req.bits.idx.foreach(_ := io.dmem.req.bits.addr)
-  io.dmem.req.bits.dprv := Mux(ex_ctrl.sel_alu1 == A1_DEF, PRV.M, Mux(ex_reg_hls, csr.io.hstatus.spvp, csr.io.status.dprv))
+  io.dmem.req.bits.dprv := Mux(ex_ctrl.sel_alu1 === A1_DEF, PRV.M, Mux(ex_reg_hls, csr.io.hstatus.spvp, csr.io.status.dprv))
   io.dmem.req.bits.dv := Mux(ex_reg_hls, true.B, csr.io.status.dv)
   io.dmem.s1_data.data := (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2))
   io.dmem.s1_kill := killm_common || mem_ldst_xcpt || fpu_kill_mem

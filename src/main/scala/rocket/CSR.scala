@@ -72,7 +72,10 @@ class HStatus extends Bundle {
   val spv = Bool()
   val gva = Bool()
   val vsbe = Bool()
-  val zero1 = UInt(width = 5)
+
+  val upie = Bool()
+  val zero0 = UInt(width = 3)
+  val uie = Bool()
 }
 
 class DCSR extends Bundle {
@@ -370,15 +373,15 @@ class CSRFile(
 
   val (supported_interrupts, delegable_interrupts) = {
     val sup = Wire(new MIP)
-    sup.usip := false
+    sup.usip := true
     sup.ssip := Bool(usingSupervisor)
     sup.vssip := Bool(usingHypervisor)
     sup.msip := true
-    sup.utip := false
+    sup.utip := true
     sup.stip := Bool(usingSupervisor)
     sup.vstip := Bool(usingHypervisor)
     sup.mtip := true
-    sup.ueip := false
+    sup.ueip := true
     sup.seip := Bool(usingSupervisor)
     sup.vseip := Bool(usingHypervisor)
     sup.meip := true
@@ -425,6 +428,15 @@ class CSRFile(
     Causes.fetch_page_fault,
     Causes.load_page_fault,
     Causes.store_page_fault).map(1 << _).sum)
+
+  val s_delegable_exceptions = UInt(Seq(
+    Causes.virtual_supervisor_ecall,
+    Causes.fetch_guest_page_fault,
+    Causes.load_guest_page_fault,
+    Causes.virtual_instruction,
+    Causes.store_guest_page_fault,
+    Causes.misaligned_load,
+    Causes.misaligned_store).map(1 << _).sum)
 
   val hs_delegable_interrupts = {
     val hs_sup = Wire(new MIP().fromBits(0.U))
@@ -531,6 +543,15 @@ class CSRFile(
       val reg = Reg(UInt(width = vaddrBits))
       (reg, formTVec(reg).sextTo(xLen))
   }
+
+  val (reg_sideleg, read_sideleg) = {
+    val reg = Reg(UInt(xLen.W))
+    (reg, Mux(usingHypervisor, reg & s_delegable_interrupts, 0.U))
+  }
+  val (reg_sedeleg, read_sedeleg) = {
+    val reg = Reg(UInt(xLen.W))
+    (reg, Mux(usingHypervisor, reg & s_delegable_exceptions, 0.U))
+  }
   val reg_vsstatus = Reg(new MStatus)
   val reg_vsscratch = Reg(Bits(width = xLen))
   val reg_vsepc = Reg(UInt(width = vaddrBitsExtended))
@@ -585,9 +606,10 @@ class CSRFile(
     io.interrupts.buserror.map(_ << CSR.rnmiBEUCause).getOrElse(0.U),
     !io.interrupts.debug && (nmi.unmi && reg_unmie || nmi.rnmi && reg_rnmie))).getOrElse(0.U, false.B)
   val m_interrupts = Mux(nmie && (reg_mstatus.prv <= PRV.S || reg_mstatus.mie), ~(~pending_interrupts | read_mideleg), UInt(0))
-  val s_interrupts = Mux(nmie && (reg_mstatus.v || reg_mstatus.prv < PRV.S || (reg_mstatus.prv === PRV.S && reg_mstatus.sie)), pending_interrupts & read_mideleg & ~read_hideleg, UInt(0))
+  val s_interrupts = Mux(nmie && (reg_mstatus.v || reg_mstatus.prv < PRV.S || (reg_mstatus.prv === PRV.S && reg_mstatus.sie)), pending_interrupts & read_mideleg & ~read_hideleg & ~read_sideleg, UInt(0))
   val vs_interrupts = Mux(nmie && (reg_mstatus.v && (reg_mstatus.prv < PRV.S || reg_mstatus.prv === PRV.S && reg_vsstatus.sie)), pending_interrupts & read_hideleg, UInt(0))
-  val (anyInterrupt, whichInterrupt) = chooseInterrupt(Seq(vs_interrupts, s_interrupts, m_interrupts, nmi_interrupts, d_interrupts))
+  val u_interrupts = Mux(nmie && (reg_mstatus.v || (reg_mstatus.prv < PRV.S && reg_hstatus.uie)), pending_interrupts & read_sideleg, UInt(0))
+  val (anyInterrupt, whichInterrupt) = chooseInterrupt(Seq(u_interrupts, vs_interrupts, s_interrupts, m_interrupts, nmi_interrupts, d_interrupts))
   val interruptMSB = BigInt(1) << (xLen-1)
   val interruptCause = UInt(interruptMSB) + (nmiFlag << (xLen-2)) + whichInterrupt
   io.interrupt := (anyInterrupt && !io.singleStep || reg_singleStepped) && !(reg_debug || io.status.cease)
@@ -806,7 +828,7 @@ class CSRFile(
     read_mapping += CSRs.huvstvec -> read_vstvec
 
     val read_uie = reg_mie & s_delegable_interrupts
-    val read_uip = 0.U
+    val read_uip = read_mip & s_delegable_interrupts
     val read_ustatus = 0.U
 
     read_mapping += CSRs.ustatus -> read_ustatus
@@ -822,6 +844,12 @@ class CSRFile(
     read_mapping += CSRs.huie -> (read_hie | read_uie)
     read_mapping += CSRs.hucounteren-> reg_hcounteren
     read_mapping += CSRs.hutval -> reg_htval
+
+    read_mapping += CSRs.sedeleg -> read_sedeleg
+    read_mapping += CSRs.sideleg -> read_sideleg
+
+    read_mapping += CSRs.huip -> (read_hip | read_uip)
+    read_mapping += CSRs.huvip -> read_hvip
   }
 
   // mimpid, marchid, and mvendorid are 0 unless overridden by customCSRs
@@ -862,6 +890,7 @@ class CSRFile(
     usingHypervisor.option(      HFENCE_VVMA-> List(N,N,N,N,N,N,Y,N)) ++
     usingHypervisor.option(      HFENCE_GVMA-> List(N,N,N,N,N,N,Y,N)) ++
     usingHypervisor.option(      HUFENCE_VVMA->List(N,N,N,N,N,N,Y,N)) ++
+    usingHypervisor.option(      URET->        List(N,N,Y,N,N,N,N,N)) ++
     usingHypervisor.option(      HUFENCE_GVMA->List(N,N,N,N,N,N,Y,N)) ++
     (if (usingHypervisor)        hlsv.map(_->  List(N,N,N,N,N,N,N,Y)) else Seq())
   val insn_call :: insn_break :: insn_ret :: insn_cease :: insn_wfi :: _ :: _ :: _ :: Nil =
@@ -937,6 +966,7 @@ class CSRFile(
   val debugException = p(DebugModuleKey).map(_.debugException).getOrElse(BigInt(0x808))
   val debugTVec = Mux(reg_debug, Mux(insn_break, debugEntry.U, debugException.U), debugEntry.U)
   val delegate = Bool(usingSupervisor) && reg_mstatus.prv <= PRV.S && Mux(cause(xLen-1), read_mideleg(cause_lsbs), read_medeleg(cause_lsbs))
+  val delegateU = delegate && Mux(cause(xLen-1), read_sideleg(cause_lsbs), read_sedeleg(cause_lsbs))
   val delegateVS = reg_mstatus.v && delegate && Mux(cause(xLen-1), read_hideleg(cause_lsbs), read_hedeleg(cause_lsbs))
   def mtvecBaseAlign = 2
   def mtvecInterruptAlign = {
@@ -944,7 +974,7 @@ class CSRFile(
     log2Ceil(xLen)
   }
   val notDebugTVec = {
-    val base = Mux(delegate, Mux(delegateVS, read_vstvec, read_stvec), read_mtvec)
+    val base = Mux(delegate, Mux(delegateVS, read_vstvec, Mux(delegateU, read_utvec, read_stvec)), read_mtvec)
     val interruptOffset = cause(mtvecInterruptAlign-1, 0) << mtvecBaseAlign
     val interruptVec = Cat(base >> (mtvecInterruptAlign + mtvecBaseAlign), interruptOffset)
     val doVector = base(0) && cause(cause.getWidth-1) && (cause_lsbs >> mtvecInterruptAlign) === 0
@@ -1028,6 +1058,18 @@ class CSRFile(
       reg_vsstatus.spie := reg_vsstatus.sie
       reg_vsstatus.sie := false
       new_prv := PRV.S
+    }.elsewhen (delegateU && nmie) {
+      reg_mstatus.v := false
+      reg_hstatus.spvp := Mux(reg_mstatus.v, reg_mstatus.prv(0),reg_hstatus.spvp)
+      reg_htval := Mux(is_guest_page_fault, io.htval(vaddrBits-1,0) >> 2, 0.U)
+      reg_hstatus.gva := io.gva
+      reg_hstatus.spv := reg_mstatus.v
+      reg_uepc := epc
+      reg_ucause := cause
+      reg_utval := io.tval
+      reg_hstatus.upie := reg_mstatus.uie
+      reg_hstatus.uie := false
+      new_prv := PRV.U
     }.elsewhen (delegate && nmie) {
       reg_mstatus.v := false
       reg_hstatus.spvp := Mux(reg_mstatus.v, reg_mstatus.prv(0),reg_hstatus.spvp)
@@ -1078,7 +1120,22 @@ class CSRFile(
 
   when (insn_ret) {
     val ret_prv = WireInit(UInt(), DontCare)
-    when (Bool(usingSupervisor) && !io.rw.addr(9)) {
+    when(Bool(usingHypervisor) && !io.rw.addr(8)) {
+      when (!reg_mstatus.v) {
+        reg_hstatus.uie := reg_hstatus.upie
+        reg_hstatus.upie := true
+        ret_prv := reg_hstatus.spvp
+        reg_mstatus.v := usingHypervisor && reg_hstatus.spv
+        io.evec := readEPC(reg_uepc)
+        reg_hstatus.spv := false
+      }.otherwise {
+        reg_hstatus.uie := reg_hstatus.upie
+        reg_hstatus.upie := true
+        ret_prv := PRV.U
+        io.evec := readEPC(reg_uepc)
+      }
+    }.elsewhen (Bool(usingSupervisor) && !io.rw.addr(9)) {
+      // deal with sret 
       when (!reg_mstatus.v) {
         reg_mstatus.sie := reg_mstatus.spie
         reg_mstatus.spie := true
@@ -1231,6 +1288,9 @@ class CSRFile(
         reg_mip.seip := new_mip.seip
       }
       if (usingHypervisor) {
+        reg_mip.usip := new_mip.usip
+        reg_mip.utip := new_mip.utip
+        reg_mip.ueip := new_mip.ueip
         reg_mip.vssip := new_mip.vssip
       }
     }
@@ -1301,6 +1361,9 @@ class CSRFile(
       when (decoded_addr(CSRs.sip)) {
         val new_sip = new MIP().fromBits((read_mip & ~read_mideleg) | (wdata & read_mideleg))
         reg_mip.ssip := new_sip.ssip
+        reg_mip.usip := new_sip.usip
+        reg_mip.utip := new_sip.utip
+        reg_mip.ueip := new_sip.ueip
       }
       when (decoded_addr(CSRs.satp)) {
         if (usingVM) {
@@ -1347,6 +1410,8 @@ class CSRFile(
         reg_hstatus.vtw := new_hstatus.vtw
         reg_hstatus.vtsr := new_hstatus.vtsr
         reg_hstatus.vsxl := new_hstatus.vsxl
+        reg_hstatus.uie  := new_hstatus.uie
+        reg_hstatus.upie := new_hstatus.upie
       }
       when (decoded_addr(CSRs.hideleg))  { reg_hideleg := wdata }
       when (decoded_addr(CSRs.hedeleg))  { reg_hedeleg := wdata }
@@ -1418,6 +1483,25 @@ class CSRFile(
       }
       when (decoded_addr(CSRs.hucounteren)) { reg_hcounteren := wdata }
       when (decoded_addr(CSRs.hutval))    { reg_htval := wdata(vaddrBits-1,0) }  
+      when (decoded_addr(CSRs.sideleg))  { reg_sideleg := wdata }
+      when (decoded_addr(CSRs.sedeleg))  { reg_sedeleg := wdata }
+
+      when (decoded_addr(CSRs.huvip)) {
+        val new_sip = new MIP().fromBits((read_mip & ~(hs_delegable_interrupts | s_delegable_interrupts)) | (wdata & (hs_delegable_interrupts | s_delegable_interrupts)))
+        reg_mip.vssip := new_sip.vssip
+        reg_mip.vstip := new_sip.vstip
+        reg_mip.vseip := new_sip.vseip
+      }
+
+      when (decoded_addr(CSRs.huip)) {
+        val new_hip = new MIP().fromBits((read_mip & ~(hs_delegable_interrupts | s_delegable_interrupts)) | (wdata & (hs_delegable_interrupts | s_delegable_interrupts)))
+        reg_mip.vssip := new_hip.vssip
+        reg_mip.vstip := new_hip.vstip
+        reg_mip.vseip := new_hip.vseip
+        reg_mip.usip  := new_hip.usip
+        reg_mip.utip  := new_hip.utip
+        reg_mip.ueip  := new_hip.ueip
+      }
     }
     if (usingUser) {
       when (decoded_addr(CSRs.mcounteren)) { reg_mcounteren := wdata }
