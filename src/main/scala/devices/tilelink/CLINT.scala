@@ -17,13 +17,15 @@ object CLINTConsts
 {
   def msipOffset(hart: Int) = hart * msipBytes
   def timecmpOffset(hart: Int) = 0x4000 + hart * timecmpBytes
+  def vtimecmpOffset(hart: Int) = 0x1000 + hart * timecmpBytes
+  def vtimectlOffset(hart: Int) = 0x1800 + hart * timecmpBytes
   def timeOffset = 0xbff8
   def msipBytes = 4
   def timecmpBytes = 8
   def size = 0x10000
   def timeWidth = 64
   def ipiWidth = 32
-  def ints = 2
+  def ints = 3
 }
 
 case class CLINTParams(baseAddress: BigInt = 0x02000000, intStages: Int = 0)
@@ -71,16 +73,21 @@ class CLINT(params: CLINTParams, beatBytes: Int)(implicit p: Parameters) extends
 
     val nTiles = intnode.out.size
     val timecmp = Seq.fill(nTiles) { Reg(UInt(width = timeWidth)) }
+    val vtimecmp= Seq.fill(nTiles) { Reg(UInt(width = timeWidth)) }
+    val vtimectl= Seq.fill(nTiles) { Reg(UInt(width = timeWidth)) }
     val ipi = Seq.fill(nTiles) { RegInit(UInt(0, width = 1)) }
 
     val (intnode_out, _) = intnode.out.unzip
     intnode_out.zipWithIndex.foreach { case (int, i) =>
       int(0) := ShiftRegister(ipi(i)(0), params.intStages) // msip
       int(1) := ShiftRegister(time.asUInt >= timecmp(i).asUInt, params.intStages) // mtip
+      int(2) := ShiftRegister(time.asUInt >= vtimecmp(i).asUInt && vtimectl(0) === UInt(1), params.intStages) // utip
     }
 
     /* 0000 msip hart 0
      * 0004 msip hart 1
+     * 1000 vtimecmp
+     * 1800 vtimectl
      * 4000 mtimecmp hart 0 lo
      * 4004 mtimecmp hart 0 hi
      * 4008 mtimecmp hart 1 lo
@@ -94,6 +101,10 @@ class CLINT(params: CLINTParams, beatBytes: Int)(implicit p: Parameters) extends
         RegField(1, r, RegFieldDesc(s"msip_$i", s"MSIP bit for Hart $i", reset=Some(0))) :: RegField(ipiWidth - 1) :: Nil }),
       timecmpOffset(0) -> timecmp.zipWithIndex.flatMap{ case (t, i) => RegFieldGroup(s"mtimecmp_$i", Some(s"MTIMECMP for hart $i"),
           RegField.bytes(t, Some(RegFieldDesc(s"mtimecmp_$i", "", reset=None))))},
+      vtimecmpOffset(0)-> vtimecmp.zipWithIndex.flatMap{ case (t, i) => RegFieldGroup(s"vtimecmp_$i", Some(s"VTIMECMP for hart $i"),
+          RegField.bytes(t, Some(RegFieldDesc(s"vtimecmp_$i", "", reset=None))))},
+      vtimectlOffset(0)-> vtimectl.zipWithIndex.flatMap{ case (t, i) => RegFieldGroup(s"vtimectl_$i", Some(s"VTIMECTL for hart $i"),
+          RegField.bytes(t, Some(RegFieldDesc(s"vtimectl_$i", "", reset=None))))},
       timeOffset       -> RegFieldGroup("mtime", Some("Timer Register"),
         RegField.bytes(time, Some(RegFieldDesc("mtime", "", reset=Some(0), volatile=true))))
     )

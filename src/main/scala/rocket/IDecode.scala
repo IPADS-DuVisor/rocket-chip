@@ -126,7 +126,12 @@ class IDecode(implicit val p: Parameters) extends DecodeConstants
 class SpecialDecode(implicit val p: Parameters) extends DecodeConstants
 {
   val table: Array[(BitPat, List[BitPat])] = Array(
-    RDTIME->    List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N))
+    RDTIME->    List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
+    RDVTIMECMP->List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
+    WRVTIMECMP->List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XWR,      N,N,N,N,N,N,N,CSR.N,N,N,N,N),
+    RDVTIMECTL->List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
+    WRVTIMECTL->List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XWR,      N,N,N,N,N,N,N,CSR.N,N,N,N,N))
+
 }
 
 class FenceIDecode(flushDCache: Boolean)(implicit val p: Parameters) extends DecodeConstants

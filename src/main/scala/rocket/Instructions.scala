@@ -880,6 +880,10 @@ object Instructions {
   def FRCSR              = BitPat("b00000000001100000010?????1110011")
   def RDCYCLE            = BitPat("b11000000000000000010?????1110011")
   def RDTIME             = BitPat("b11000000000100000010?????1110011")
+  def RDVTIMECMP         = BitPat("b11100000000100000010?????1110011")
+  def WRVTIMECMP         = BitPat("b1110000?????00000001000001110011")
+  def RDVTIMECTL         = BitPat("b11110000001000000010?????1110011")
+  def WRVTIMECTL         = BitPat("b1111000?????00000001000001110011")
   def RDINSTRET          = BitPat("b11000000001000000010?????1110011")
   def RDCYCLEH           = BitPat("b11001000000000000010?????1110011")
   def RDTIMEH            = BitPat("b11001000000100000010?????1110011")
@@ -1235,6 +1239,8 @@ object CSRs {
   val mhpmcounter29h = 0xb9d
   val mhpmcounter30h = 0xb9e
   val mhpmcounter31h = 0xb9f
+  val vtimecmp       = 0x401
+  val vtimectl       = 0x402
   val all = {
     val res = collection.mutable.ArrayBuffer[Int]()
     res += fflags
@@ -1515,6 +1521,8 @@ object CSRs {
     res += mhpmcounter29h
     res += mhpmcounter30h
     res += mhpmcounter31h
+    res += vtimecmp
+    res += vtimectl
     res.toArray
   }
 }
