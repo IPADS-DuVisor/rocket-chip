@@ -522,7 +522,10 @@ class CSRFile(
     val reg = Reg(UInt(32.W))
     (reg, Mux(usingHypervisor, reg & hs_delegable_counters, 0.U))
   }
+  val reg_htimedelta = Reg(UInt(xLen.W))
   val reg_hstatus = RegInit(0.U.asTypeOf(new HStatus))
+  val reg_hustatus_spv = Reg(init=Bool(false))
+  val read_hustatus = Cat(Cat(reg_hstatus.asUInt()(63, 8), reg_hustatus_spv), reg_hstatus.asUInt()(6, 0))
   val reg_hgatp = Reg(new PTBR)
   val read_hvip = reg_mip.asUInt & hs_delegable_interrupts
   val reg_hgeip = Reg(UInt(xLen.W))
@@ -785,7 +788,7 @@ class CSRFile(
     read_mapping += CSRs.mtval2 -> reg_mtval2
 
     read_mapping += CSRs.hstatus -> reg_hstatus.asUInt()
-    read_mapping += CSRs.hustatus -> reg_hstatus.asUInt()
+    read_mapping += CSRs.hustatus -> read_hustatus
     read_mapping += CSRs.hedeleg -> read_hedeleg
     read_mapping += CSRs.hideleg -> read_hideleg
     read_mapping += CSRs.hcounteren-> reg_hcounteren
@@ -852,6 +855,7 @@ class CSRFile(
 
     read_mapping += CSRs.huip -> (read_hip | read_uip)
     read_mapping += CSRs.huvip -> read_hvip
+    read_mapping += CSRs.hutimedelta -> reg_htimedelta
   }
 
   // mimpid, marchid, and mvendorid are 0 unless overridden by customCSRs
@@ -1065,7 +1069,7 @@ class CSRFile(
       reg_hstatus.spvp := Mux(reg_mstatus.v, reg_mstatus.prv(0),reg_hstatus.spvp)
       reg_htval := Mux(is_guest_page_fault, io.htval(vaddrBits-1,0) >> 2, 0.U)
       reg_hstatus.gva := io.gva
-      reg_hstatus.spv := reg_mstatus.v
+      reg_hustatus_spv := reg_mstatus.v
       reg_uepc := epc
       reg_ucause := cause
       reg_utval := io.tval
@@ -1127,14 +1131,9 @@ class CSRFile(
         reg_hstatus.uie := reg_hstatus.upie
         reg_hstatus.upie := true
         ret_prv := reg_hstatus.spvp
-        reg_mstatus.v := usingHypervisor && reg_hstatus.spv
+        reg_mstatus.v := usingHypervisor && reg_hustatus_spv
         io.evec := readEPC(reg_uepc)
         reg_hstatus.spv := false
-      }.otherwise {
-        reg_hstatus.uie := reg_hstatus.upie
-        reg_hstatus.upie := true
-        ret_prv := PRV.U
-        io.evec := readEPC(reg_uepc)
       }
     }.elsewhen (Bool(usingSupervisor) && !io.rw.addr(9)) {
       // deal with sret 
@@ -1405,7 +1404,7 @@ class CSRFile(
       when (decoded_addr(CSRs.hustatus)) {
         val new_hstatus = new HStatus().fromBits(wdata)
         reg_hstatus.gva := new_hstatus.gva
-        reg_hstatus.spv := new_hstatus.spv
+        reg_hustatus_spv := new_hstatus.spv
         reg_hstatus.spvp := new_hstatus.spvp
         reg_hstatus.vgein := new_hstatus.vgein
         reg_hstatus.vtvm := new_hstatus.vtvm
@@ -1438,6 +1437,7 @@ class CSRFile(
         reg_mip.vseip := new_sip.vseip
       }
       when (decoded_addr(CSRs.hcounteren)) { reg_hcounteren := wdata }
+      when (decoded_addr(CSRs.hutimedelta)) { reg_htimedelta := wdata }
       when (decoded_addr(CSRs.htval))    { reg_htval := wdata(vaddrBits-1,0) }
 
       when (decoded_addr(CSRs.vsstatus) || decoded_addr(CSRs.huvsstatus)) {
