@@ -488,9 +488,18 @@ class TLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge: T
       for (e <- all_real_entries) {
         val hv = usingHypervisor && io.sfence.bits.hv
         val hg = usingHypervisor && io.sfence.bits.hg
-        when (!hg && io.sfence.bits.rs1) { e.invalidateVPN(vpn, hv) }
-        .elsewhen (!hg && io.sfence.bits.rs2) { e.invalidateNonGlobal(hv) }
-        .otherwise { e.invalidate(hv, hg) }
+        when (!hg && io.sfence.bits.rs1) { 
+          // e.invalidateVPN(vpn, hv) 
+          e.invalidate()
+        }
+        .elsewhen (!hg && io.sfence.bits.rs2) { 
+          // e.invalidateNonGlobal(hv) 
+          e.invalidate()
+        }
+        .otherwise { 
+          // e.invalidate(hv, hg) 
+          e.invalidate()
+        }
       }
     }
     when (multipleHits || reset) {
