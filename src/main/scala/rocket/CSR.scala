@@ -1133,7 +1133,7 @@ class CSRFile(
         ret_prv := reg_hstatus.spvp
         reg_mstatus.v := usingHypervisor && reg_hustatus_spv
         io.evec := readEPC(reg_uepc)
-        reg_hstatus.spv := false
+        reg_hustatus_spv := false
       }
     }.elsewhen (Bool(usingSupervisor) && !io.rw.addr(9)) {
       // deal with sret 
