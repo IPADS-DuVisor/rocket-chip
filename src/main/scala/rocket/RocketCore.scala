@@ -211,6 +211,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val ex_reg_pc = Reg(UInt())
   val ex_reg_mem_size = Reg(UInt())
   val ex_reg_mmio = Reg(UInt())
+  val ex_reg_mmio_flag = Reg(Bool())
   val ex_reg_hls = Reg(Bool())
   val ex_reg_inst = Reg(Bits())
   val ex_reg_raw_inst = Reg(UInt())
@@ -290,6 +291,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val (id_waddr_illegal,  id_waddr)  = decodeReg(id_expanded_inst(0).rd)
 
   val id_load_use = Wire(Bool())
+  val id_mmio_flag = Wire(Bool())
   val id_reg_fence = Reg(init=Bool(false))
   val id_ren = IndexedSeq(id_ctrl.rxs1, id_ctrl.rxs2)
   val id_raddr = IndexedSeq(id_raddr1, id_raddr2)
@@ -414,9 +416,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
       MMIO_VTIMECMP -> SInt(0x2001000L + tileParams.hartId * 8, width = 64),
       MMIO_VTIMECTL -> SInt(0x2001800L + tileParams.hartId * 8, width = 64)
     ))))
-  val ex_op2 = MuxLookup(ex_ctrl.sel_alu2, 
-    Mux(ex_ctrl.sel_alu1 === A1_DEF, Cat(io.hartid, Fill(3, UInt(0))).asSInt, SInt(0)), 
-    Seq(
+  val ex_op2 = MuxLookup(ex_ctrl.sel_alu2,  SInt(0), Seq(
     A2_RS2 -> ex_rs(1).asSInt,
     A2_IMM -> ex_imm,
     A2_SIZE -> Mux(ex_reg_rvc, SInt(2), SInt(4))))
@@ -490,6 +490,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     ex_reg_flush_pipe := id_ctrl.fence_i || id_csr_flush
     ex_reg_load_use := id_load_use
     ex_reg_hls := usingHypervisor && id_system_insn && id_ctrl.mem_cmd.isOneOf(M_XRD, M_XWR, M_HLVX)
+    id_mmio_flag := id_ctrl.sel_alu1 === A1_DEF && (id_ctrl.rxs2 || id_ctrl.wxd) && id_ctrl.mem
+    ex_reg_mmio_flag := id_mmio_flag
     ex_reg_mem_size := Mux(usingHypervisor && id_system_insn, id_inst(0)(27, 26), id_inst(0)(13, 12))
     ex_reg_mmio := id_inst(0)(29, 28)
     when (id_ctrl.mem_cmd.isOneOf(M_SFENCE, M_HFENCEV, M_HFENCEG, M_FLUSH_ALL)) {
@@ -498,7 +500,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     when (id_ctrl.mem_cmd === M_SFENCE && csr.io.status.v) {
       ex_ctrl.mem_cmd := M_HFENCEV
     }
-    when (id_ctrl.sel_alu1 === A1_DEF) {
+    when (id_mmio_flag) {
       ex_reg_mem_size := UInt(3)
     }
     if (tile.dcache.flushOnFenceI) {
@@ -906,10 +908,10 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.dmem.req.bits.size := ex_reg_mem_size
   io.dmem.req.bits.signed := !Mux(ex_reg_hls, ex_reg_inst(20), ex_reg_inst(14))
   io.dmem.req.bits.phys := Bool(false)
-  io.dmem.req.bits.addr := Mux(ex_ctrl.sel_alu1 === A1_DEF, alu.io.adder_out, encodeVirtualAddress(ex_rs(0), alu.io.adder_out))
+  io.dmem.req.bits.addr := Mux(ex_reg_mmio_flag, alu.io.adder_out, encodeVirtualAddress(ex_rs(0), alu.io.adder_out))
   io.dmem.req.bits.idx.foreach(_ := io.dmem.req.bits.addr)
-  io.dmem.req.bits.dprv := Mux(ex_ctrl.sel_alu1 === A1_DEF, PRV.M, Mux(ex_reg_hls, csr.io.hstatus.spvp, csr.io.status.dprv))
-  io.dmem.req.bits.dv := Mux(ex_ctrl.sel_alu1 === A1_DEF, false.B, Mux(ex_reg_hls, true.B, csr.io.status.dv))
+  io.dmem.req.bits.dprv := Mux(ex_reg_mmio_flag, PRV.M, Mux(ex_reg_hls, csr.io.hstatus.spvp, csr.io.status.dprv))
+  io.dmem.req.bits.dv := Mux(ex_reg_mmio_flag, false.B, Mux(ex_reg_hls, true.B, csr.io.status.dv))
   io.dmem.s1_data.data := (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2))
   io.dmem.s1_kill := killm_common || mem_ldst_xcpt || fpu_kill_mem
   io.dmem.s2_kill := false
