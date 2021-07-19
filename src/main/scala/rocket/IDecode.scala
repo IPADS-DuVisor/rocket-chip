@@ -126,12 +126,7 @@ class IDecode(implicit val p: Parameters) extends DecodeConstants
 class SpecialDecode(implicit val p: Parameters) extends DecodeConstants
 {
   val table: Array[(BitPat, List[BitPat])] = Array(
-    RDTIME->    List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
-    RDVTIMECMP->List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
-    WRVTIMECMP->List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XWR,      N,N,N,N,N,N,N,CSR.N,N,N,N,N),
-    RDVTIMECTL->List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
-    WRVTIMECTL->List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XWR,      N,N,N,N,N,N,N,CSR.N,N,N,N,N))
-
+    RDTIME->    List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N))
 }
 
 class FenceIDecode(flushDCache: Boolean)(implicit val p: Parameters) extends DecodeConstants
@@ -197,7 +192,11 @@ class HypervisorDecode(implicit val p: Parameters) extends DecodeConstants
     HUSV_B->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N),
     HUSV_H->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N),
     HUSV_W->     List(Y,N,N,N,N,N,Y,Y,N,A2_ZERO, A1_RS1, IMM_I, DW_XPR, FN_ADD, Y,M_XWR,      N,N,N,N,N,N,N,CSR.I,N,N,N,N),
-    URET->       List(Y,N,N,N,N,N,N,X,N,A2_X,    A1_X,   IMM_X, DW_X,   FN_X,   N,M_X,        N,N,N,N,N,N,N,CSR.I,N,N,N,N))
+    URET->       List(Y,N,N,N,N,N,N,X,N,A2_X,    A1_X,   IMM_X, DW_X,   FN_X,   N,M_X,        N,N,N,N,N,N,N,CSR.I,N,N,N,N),
+    RDVTIMECMP-> List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
+    WRVTIMECMP-> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XWR,      N,N,N,N,N,N,N,CSR.N,N,N,N,N),
+    RDVTIMECTL-> List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
+    WRVTIMECTL-> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XWR,      N,N,N,N,N,N,N,CSR.N,N,N,N,N))
 }
 
 class DebugDecode(implicit val p: Parameters) extends DecodeConstants
