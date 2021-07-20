@@ -1067,7 +1067,7 @@ class CSRFile(
     }.elsewhen (delegateU && nmie) {
       reg_mstatus.v := false
       reg_hstatus.spvp := Mux(reg_mstatus.v, reg_mstatus.prv(0),reg_hstatus.spvp)
-      reg_htval := Mux(is_guest_page_fault, io.htval(vaddrBits-1,0) >> 2, 0.U)
+      reg_htval := Mux(is_guest_page_fault, io.htval(vaddrBits-1,0) >> 2, reg_htval)
       reg_hstatus.gva := io.gva
       reg_hustatus_spv := reg_mstatus.v
       reg_uepc := epc
@@ -1079,7 +1079,7 @@ class CSRFile(
     }.elsewhen (delegate && nmie) {
       reg_mstatus.v := false
       reg_hstatus.spvp := Mux(reg_mstatus.v, reg_mstatus.prv(0),reg_hstatus.spvp)
-      reg_htval := Mux(is_guest_page_fault, io.htval(vaddrBits-1,0) >> 2, 0.U)
+      reg_htval := Mux(is_guest_page_fault, io.htval(vaddrBits-1,0) >> 2, reg_htval)
       reg_hstatus.gva := io.gva
       reg_hstatus.spv := reg_mstatus.v
       reg_sepc := epc
@@ -1093,7 +1093,7 @@ class CSRFile(
       reg_mstatus.v := false
       reg_mstatus.mpv := reg_mstatus.v
       reg_mstatus.gva := io.gva
-      reg_mtval2 := Mux(is_guest_page_fault, io.htval(vaddrBits-1,0) >> 2, 0.U)
+      reg_mtval2 := Mux(is_guest_page_fault, io.htval(vaddrBits-1,0) >> 2, reg_htval)
       reg_mepc := epc
       reg_mcause := cause
       reg_mtval := io.tval
