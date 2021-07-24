@@ -196,7 +196,22 @@ class HypervisorDecode(implicit val p: Parameters) extends DecodeConstants
     RDVTIMECMP-> List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
     WRVTIMECMP-> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XWR,      N,N,N,N,N,N,N,CSR.N,N,N,N,N),
     RDVTIMECTL-> List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
-    WRVTIMECTL-> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XWR,      N,N,N,N,N,N,N,CSR.N,N,N,N,N))
+    WRVTIMECTL-> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XWR,      N,N,N,N,N,N,N,CSR.N,N,N,N,N),
+    RVIPI0    -> List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
+    CVIPI0    -> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XA_AND,   N,N,N,N,N,N,N,CSR.N,N,N,N,N),    
+    SVIPI0    -> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XA_OR,    N,N,N,N,N,N,N,CSR.N,N,N,N,N),
+    RVIPI1    -> List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
+    CVIPI1    -> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XA_AND,   N,N,N,N,N,N,N,CSR.N,N,N,N,N),    
+    SVIPI1    -> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XA_OR,    N,N,N,N,N,N,N,CSR.N,N,N,N,N),
+    RVIPI2    -> List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
+    CVIPI2    -> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XA_AND,   N,N,N,N,N,N,N,CSR.N,N,N,N,N),    
+    SVIPI2    -> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XA_OR,    N,N,N,N,N,N,N,CSR.N,N,N,N,N),
+    RVIPI3    -> List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),
+    CVIPI3    -> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XA_AND,   N,N,N,N,N,N,N,CSR.N,N,N,N,N),    
+    SVIPI3    -> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XA_OR,    N,N,N,N,N,N,N,CSR.N,N,N,N,N),
+    RDVCPUID  -> List(Y,N,N,N,N,N,N,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XRD,      N,N,N,N,N,N,Y,CSR.N,N,N,N,N),    
+    WRVCPUID  -> List(Y,N,N,N,N,N,Y,N,N,A2_ZERO,A1_DEF, IMM_X, DW_XPR,FN_ADD,   Y,M_XWR,      N,N,N,N,N,N,N,CSR.N,N,N,N,N),
+    )
 }
 
 class DebugDecode(implicit val p: Parameters) extends DecodeConstants

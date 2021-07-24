@@ -596,6 +596,7 @@ class CSRFile(
   io.interrupts.seip.foreach { mip.seip := reg_mip.seip || _ }
   // utip is the OR of reg_mip.utip and the actual line from the PLIC
   mip.utip := reg_mip.utip || io.interrupts.utip
+  mip.usip := reg_mip.usip || io.interrupts.usip
   // Simimlar sort of thing would apply if the PLIC had a VSEIP line:
   //io.interrupts.vseip.foreach { mip.vseip := reg_mip.vseip || _ }
   mip.rocc := io.rocc_interrupt

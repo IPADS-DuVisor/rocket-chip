@@ -17,15 +17,25 @@ object CLINTConsts
 {
   def msipOffset(hart: Int) = hart * msipBytes
   def timecmpOffset(hart: Int) = 0x4000 + hart * timecmpBytes
-  def vtimecmpOffset(hart: Int) = 0x1000 + hart * timecmpBytes
-  def vtimectlOffset(hart: Int) = 0x1800 + hart * timecmpBytes
+  def vtimecmpOffset(hart: Int) = 0x1000 + hart * vtimecmpBytes
+  def vtimectlOffset(hart: Int) = 0x1800 + hart * vtimectlBytes
+  def vipiOffset = 0x5000
+  def vcpuidOffset(hart: Int) = 0x5800 + hart * vcpuidBytes
   def timeOffset = 0xbff8
   def msipBytes = 4
   def timecmpBytes = 8
+  def vtimecmpBytes = 8
+  def vtimectlBytes = 8
+  def vipiBytes = 32
+  def vcpuidBytes = 8
   def size = 0x10000
   def timeWidth = 64
+  def vtimecmpWidth = 64
+  def vtimectlWidth = 64
+  def vipiWidth = 256 // 4 64-bit regs
+  def vcpuidWidth = 8
   def ipiWidth = 32
-  def ints = 3
+  def ints = 4
 }
 
 case class CLINTParams(baseAddress: BigInt = 0x02000000, intStages: Int = 0)
@@ -73,8 +83,10 @@ class CLINT(params: CLINTParams, beatBytes: Int)(implicit p: Parameters) extends
 
     val nTiles = intnode.out.size
     val timecmp = Seq.fill(nTiles) { Reg(UInt(width = timeWidth)) }
-    val vtimecmp= Seq.fill(nTiles) { Reg(UInt(width = timeWidth)) }
-    val vtimectl= Seq.fill(nTiles) { Reg(UInt(width = timeWidth)) }
+    val vtimecmp= Seq.fill(nTiles) { Reg(UInt(width = vtimecmpWidth)) }
+    val vtimectl= Seq.fill(nTiles) { Reg(UInt(width = vtimectlWidth)) }
+    val vipi    = RegInit(Vec(Seq.fill(4) (0.U(64.W))))
+    val vcpuid  = Seq.fill(nTiles) { RegInit(UInt(0, width = 8)) }
     val ipi = Seq.fill(nTiles) { RegInit(UInt(0, width = 1)) }
 
     val (intnode_out, _) = intnode.out.unzip
@@ -82,6 +94,7 @@ class CLINT(params: CLINTParams, beatBytes: Int)(implicit p: Parameters) extends
       int(0) := ShiftRegister(ipi(i)(0), params.intStages) // msip
       int(1) := ShiftRegister(time.asUInt >= timecmp(i).asUInt, params.intStages) // mtip
       int(2) := ShiftRegister((time.asUInt >= vtimecmp(i).asUInt) && (vtimectl(i)(0) === UInt(1)), params.intStages) // utip
+      int(3) := ShiftRegister( (UIntToOH(vcpuid(i), width = vipiWidth) & vipi.asUInt) =/= UInt(0) , params.intStages)  //usip
     }
 
     /* 0000 msip hart 0
@@ -92,6 +105,8 @@ class CLINT(params: CLINTParams, beatBytes: Int)(implicit p: Parameters) extends
      * 4004 mtimecmp hart 0 hi
      * 4008 mtimecmp hart 1 lo
      * 400c mtimecmp hart 1 hi
+     * 5000 vipi
+     * 5800 vcpuid
      * bff8 mtime lo
      * bffc mtime hi
      */
@@ -105,6 +120,10 @@ class CLINT(params: CLINTParams, beatBytes: Int)(implicit p: Parameters) extends
           RegField.bytes(t, Some(RegFieldDesc(s"vtimecmp_$i", "", reset=None))))},
       vtimectlOffset(0)-> vtimectl.zipWithIndex.flatMap{ case (t, i) => RegFieldGroup(s"vtimectl_$i", Some(s"VTIMECTL for hart $i"),
           RegField.bytes(t, Some(RegFieldDesc(s"vtimectl_$i", "", reset=None))))},
+      vipiOffset       -> vipi.zipWithIndex.flatMap{ case (t, i) => RegFieldGroup(s"vipi_$i", Some(s"VIPI number $i"),
+          RegField.bytes(t, Some(RegFieldDesc(s"vipi_$i", "", reset=Some(0)))))},
+      vcpuidOffset(0)->   RegFieldGroup ("vcpuid", Some("USIP Bits"), vcpuid.zipWithIndex.flatMap{ case (r, i) =>
+        RegField(8, r, RegFieldDesc(s"vcpuid_$i", s"USIP bit for Hart $i", reset=Some(0))) :: RegField(64 - 8) :: Nil }),
       timeOffset       -> RegFieldGroup("mtime", Some("Timer Register"),
         RegField.bytes(time, Some(RegFieldDesc("mtime", "", reset=Some(0), volatile=true))))
     )

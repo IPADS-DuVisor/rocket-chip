@@ -37,9 +37,14 @@ trait ScalarOpConstants {
   def A2_RS2  = UInt(2, 2)
   def A2_IMM  = UInt(3, 2)
 
-  def MMIO_TIME     = UInt(0, 2)
-  def MMIO_VTIMECMP = UInt(2, 3)
-  def MMIO_VTIMECTL = UInt(3, 3)
+  def MMIO_TIME     = UInt(0, 3)
+  def MMIO_VTIMECMP = UInt(4, 3)
+  def MMIO_VTIMECTL = UInt(6, 3)
+  def MMIO_VIPI0    = UInt(1, 3)
+  def MMIO_VIPI1    = UInt(2, 3)
+  def MMIO_VIPI2    = UInt(3, 3)
+  def MMIO_VIPI3    = UInt(5, 3)
+  def MMIO_VCPUID   = UInt(7, 3)
 
   def X = BitPat("b?")
   def N = BitPat("b0")

@@ -302,7 +302,7 @@ trait CanAttachTile {
     // 2. The CLINT and PLIC output interrupts are synchronous to the TileLink bus clock,
     //    so might need to be synchronized depending on the Tile's crossing type.
 
-    //    From CLINT: "msip" and "mtip", "utip"
+    //    From CLINT: "msip" and "mtip", "utip", "usip"
     domain.crossIntIn(crossingParams.crossingType) :=
       context.clintOpt.map { _.intnode }
         .getOrElse { NullIntSource(sources = CLINTConsts.ints) }

@@ -407,14 +407,18 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val ex_rs = for (i <- 0 until id_raddr.size)
     yield Mux(ex_reg_rs_bypass(i), bypass_mux(ex_reg_rs_lsb(i)), Cat(ex_reg_rs_msb(i), ex_reg_rs_lsb(i)))
   val ex_imm = ImmGen(ex_ctrl.sel_imm, ex_reg_inst)
-  val ex_mtime = Wire(init = UInt(0x8000bff8L, width = 64))
   val ex_op1 = MuxLookup(ex_ctrl.sel_alu1, SInt(0), Seq(
     A1_RS1 -> ex_rs(0).asSInt,
     A1_PC -> ex_reg_pc.asSInt,
     A1_DEF -> MuxLookup(ex_reg_mmio, SInt(0), Seq(
       MMIO_TIME     -> SInt(0x200bff8L, width = 64),
       MMIO_VTIMECMP -> SInt(0x2001000L + tileParams.hartId * 8, width = 64),
-      MMIO_VTIMECTL -> SInt(0x2001800L + tileParams.hartId * 8, width = 64)
+      MMIO_VTIMECTL -> SInt(0x2001800L + tileParams.hartId * 8, width = 64),
+      MMIO_VIPI0    -> SInt(0x2005000L, width = 64),
+      MMIO_VIPI1    -> SInt(0x2005008L, width = 64),
+      MMIO_VIPI2    -> SInt(0x2005010L, width = 64),
+      MMIO_VIPI3    -> SInt(0x2005018L, width = 64),
+      MMIO_VCPUID   -> SInt(0x2005800L + tileParams.hartId * 8, width = 64)
     ))))
   val ex_op2 = MuxLookup(ex_ctrl.sel_alu2,  SInt(0), Seq(
     A2_RS2 -> ex_rs(1).asSInt,
@@ -493,7 +497,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     id_mmio_flag := id_ctrl.sel_alu1 === A1_DEF && (id_ctrl.rxs2 || id_ctrl.wxd) && id_ctrl.mem
     ex_reg_mmio_flag := id_mmio_flag
     ex_reg_mem_size := Mux(usingHypervisor && id_system_insn, id_inst(0)(27, 26), id_inst(0)(13, 12))
-    ex_reg_mmio := id_inst(0)(29, 28)
+    ex_reg_mmio := id_inst(0)(29, 27)
     when (id_ctrl.mem_cmd.isOneOf(M_SFENCE, M_HFENCEV, M_HFENCEG, M_FLUSH_ALL)) {
       ex_reg_mem_size := Cat(id_raddr2 =/= UInt(0), id_raddr1 =/= UInt(0))
     }
