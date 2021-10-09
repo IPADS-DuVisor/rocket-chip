@@ -81,6 +81,7 @@ class TLBEntryData(implicit p: Parameters) extends CoreBundle()(p) {
   val pw = Bool()
   val px = Bool()
   val pr = Bool()
+  val pv = Bool()
   val ppp = Bool() // PutPartial
   val pal = Bool() // AMO logical
   val paa = Bool() // AMO arithmetic
@@ -271,6 +272,7 @@ class TLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge: T
   val prot_al = fastCheck(_.supportsLogical)
   val prot_aa = fastCheck(_.supportsArithmetic)
   val prot_x = fastCheck(_.executable) && !deny_access_to_debug && pmp.io.x
+  val prot_v = pmp.io.v
   val prot_eff = fastCheck(Seq(RegionType.PUT_EFFECTS, RegionType.GET_EFFECTS) contains _.regionType)
 
   val sector_hits = sectored_entries(memIdx).map(_.sectorHit(vpn))
@@ -304,6 +306,7 @@ class TLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge: T
     newEntry.pr := prot_r
     newEntry.pw := prot_w
     newEntry.px := prot_x
+    newEntry.pv := prot_v
     newEntry.ppp := prot_pp
     newEntry.pal := prot_al
     newEntry.paa := prot_aa
@@ -348,9 +351,10 @@ class TLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge: T
   val hr_array = Cat(true.B, entries.map(_.hr).asUInt | Mux(io.ptw.status.mxr, entries.map(_.hx).asUInt, UInt(0)) | stage2_bypass)
   val hw_array = Cat(true.B, entries.map(_.hw).asUInt | stage2_bypass)
   val hx_array = Cat(true.B, entries.map(_.hx).asUInt | stage2_bypass)
-  val pr_array = Cat(Fill(nPhysicalEntries, prot_r), normal_entries.map(_.pr).asUInt) & ~ptw_ae_array
-  val pw_array = Cat(Fill(nPhysicalEntries, prot_w), normal_entries.map(_.pw).asUInt) & ~ptw_ae_array
-  val px_array = Cat(Fill(nPhysicalEntries, prot_x), normal_entries.map(_.px).asUInt) & ~ptw_ae_array
+  val pv_array = Cat(Fill(nPhysicalEntries, prot_v | (!io.req.bits.v)), normal_entries.map(entry => {entry.pv | (! entry.v)}).asUInt) 
+  val pr_array = Cat(Fill(nPhysicalEntries, prot_r), normal_entries.map(_.pr).asUInt) & ~ptw_ae_array & pv_array
+  val pw_array = Cat(Fill(nPhysicalEntries, prot_w), normal_entries.map(_.pw).asUInt) & ~ptw_ae_array & pv_array
+  val px_array = Cat(Fill(nPhysicalEntries, prot_x), normal_entries.map(_.px).asUInt) & ~ptw_ae_array & pv_array
   val eff_array = Cat(Fill(nPhysicalEntries, prot_eff), normal_entries.map(_.eff).asUInt)
   val c_array = Cat(Fill(nPhysicalEntries, cacheable), normal_entries.map(_.c).asUInt)
   val ppp_array = Cat(Fill(nPhysicalEntries, prot_pp), normal_entries.map(_.ppp).asUInt)

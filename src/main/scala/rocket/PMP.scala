@@ -12,7 +12,8 @@ import freechips.rocketchip.util.property._
 
 class PMPConfig extends Bundle {
   val l = Bool()
-  val res = UInt(2.W)
+  val res = UInt(1.W)
+  val v = Bool()
   val a = UInt(2.W)
   val x = Bool()
   val w = Bool()
@@ -152,6 +153,7 @@ class PMPChecker(lgMaxSize: Int)(implicit val p: Parameters) extends Module
     val r = Output(Bool())
     val w = Output(Bool())
     val x = Output(Bool())
+    val v = Output(Bool())
   })
 
   val default = if (io.pmp.isEmpty) true.B else io.prv > PRV.S
@@ -159,6 +161,7 @@ class PMPChecker(lgMaxSize: Int)(implicit val p: Parameters) extends Module
   pmp0.cfg.r := default
   pmp0.cfg.w := default
   pmp0.cfg.x := default
+  pmp0.cfg.v := default
 
   val res = (io.pmp zip (pmp0 +: io.pmp)).reverse.foldLeft(pmp0) { case (prev, (pmp, prevPMP)) =>
     val hit = pmp.hit(io.addr, io.size, lgMaxSize, prevPMP)
@@ -183,10 +186,12 @@ class PMPChecker(lgMaxSize: Int)(implicit val p: Parameters) extends Module
     cur.cfg.r := aligned && (pmp.cfg.r || ignore)
     cur.cfg.w := aligned && (pmp.cfg.w || ignore)
     cur.cfg.x := aligned && (pmp.cfg.x || ignore)
+    cur.cfg.v := aligned && (pmp.cfg.v || ignore)
     Mux(hit, cur, prev)
   }
 
   io.r := res.cfg.r
   io.w := res.cfg.w
   io.x := res.cfg.x
+  io.v := res.cfg.v
 }
