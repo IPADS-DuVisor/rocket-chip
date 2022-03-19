@@ -46,6 +46,14 @@ object PLICConsts
   def enableBase = 0x2000
   def hartBase = 0x200000
 
+  def VinterruptsBase   = 0x1f00000
+  def VinterruptsNum= 32 
+  def VmaxMaxiHarts = 7424
+  def VpriorityBase = 0x2000000
+  def VpendingBase  = 0x2001000
+  def VenableBase   = 0x2002000
+  def VhartBase     = 0x2200000
+
   def claimOffset = 4
   def priorityBytes = 4
 
@@ -107,7 +115,8 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
     inputRequiresOutput = false)
 
   /* Negotiated sizes */
-  def nDevices: Int = intnode.edges.in.map(_.source.num).sum
+  def nDevices: Int = intnode.edges.in.map(_.source.num).sum + PLICConsts.VinterruptsNum
+  def nDevices_hw: Int = intnode.edges.in.map(_.source.num).sum
   def minPriorities = min(params.maxPriorities, nDevices)
   def nPriorities = (1 << log2Ceil(minPriorities+1)) - 1 // round up to next 2^n-1
   def nHarts = intnode.edges.out.map(_.source.num).sum
@@ -132,7 +141,13 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
     val (io_harts, _) = intnode.out.unzip
 
     // Compact the interrupt vector the same way
-    val interrupts = intnode.in.map { case (i, e) => i.take(e.source.num) }.flatten
+    val interrupts_hw = intnode.in.map { case (i, e) => i.take(e.source.num) }.flatten
+    val vinterrupts = Reg(init=Vec.fill(PLICConsts.VinterruptsNum max 1){Bool(false)})
+    val vinterrupts_placeholder = Reg(init=Vec.fill(nDevices_hw){Bool(false)})
+    val vinterrupts_placeholder2 = Reg(init=Vec.fill(nDevices_hw){Bool(true)})
+    val vinterrupts_all = vinterrupts_placeholder ++ vinterrupts
+    val vinterrupts_all2 = vinterrupts_placeholder2 ++ vinterrupts
+    val interrupts = interrupts_hw ++ vinterrupts
     // This flattens the harts into an MSMSMSMSMS... or MMMMM.... sequence
     val harts = io_harts.flatten
 
@@ -209,6 +224,14 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
         groupDesc = Some("Pending Bit Array. 1 Bit for each interrupt source."),
         volatile = true)
 
+    def vinterruptsRegDesc(i: Int) =
+      RegFieldDesc(
+        name      = s"vinterrupts_$i",
+        desc      = s"Set to 1 if vinterrupt source $i is pending.",
+        group     = Some("vinterrupts"),
+        groupDesc = Some("vinterrupts Bit Array. 1 Bit for each interrupt source."),
+        volatile = true)
+
     def enableRegDesc(i: Int, j: Int, wide: Int) = {
       val low = if (j == 0) 1 else j*8
       val high = low + wide - 1
@@ -246,9 +269,12 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
     val claiming = Seq.tabulate(nHarts){i => Mux(claimer(i), maxDevs(i), UInt(0))}.reduceLeft(_|_)
     val claimedDevs = Vec(UIntToOH(claiming, nDevices+1).asBools)
 
-    ((pending zip gateways) zip claimedDevs.tail) foreach { case ((p, g), c) =>
+    (((pending zip gateways) zip claimedDevs.tail) zip vinterrupts_all2) foreach { case (((p, g), c), virq) =>
       g.ready := !p
-      when (c || g.valid) { p := !c }
+      when (c || g.valid) { 
+        p := !c
+        virq := !c & virq
+      }
     }
 
     // When a hart writes a claim/complete register, then
@@ -262,7 +288,7 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
     assert((completer.asUInt & (completer.asUInt - UInt(1))) === UInt(0)) // One-Hot
     val completerDev = Wire(UInt(width = log2Up(nDevices + 1)))
     val completedDevs = Mux(completer.reduce(_ || _), UIntToOH(completerDev, nDevices+1), UInt(0))
-    (gateways zip completedDevs.asBools.tail) foreach { case (g, c) =>
+    ((vinterrupts_all zip gateways) zip completedDevs.asBools.tail) foreach { case ((v, g), c) =>
        g.complete := c
     }
 
@@ -306,7 +332,11 @@ class TLPLIC(params: PLICParams, beatBytes: Int)(implicit p: Parameters) extends
       )
     }
 
-    val omRegMap : OMRegisterMap = node.regmap((priorityRegFields ++ pendingRegFields ++ enableRegFields ++ hartRegFields):_*)
+
+    val vinterruptsRegFields = Seq(PLICConsts.VinterruptsBase ->
+      (vinterrupts.zipWithIndex.map { case (b, i) => RegField(1, b, vinterruptsRegDesc(i))}))
+
+    val omRegMap : OMRegisterMap = node.regmap((priorityRegFields ++ pendingRegFields ++ enableRegFields ++ hartRegFields ++ vinterruptsRegFields ):_*)
 
     if (nDevices >= 2) {
       val claimed = claimer(0) && maxDevs(0) > 0

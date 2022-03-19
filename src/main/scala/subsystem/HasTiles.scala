@@ -123,6 +123,14 @@ trait HasTileInterruptSources
       outputRequiresInput = false,
       inputRequiresOutput = false))
   }
+  val vseipNode = p(PLICKey) match {
+    case Some(_) => None
+    case None    => Some(IntNexusNode(
+      sourceFn = { _ => IntSourcePortParameters(Seq(IntSourceParameters(1))) },
+      sinkFn   = { _ => IntSinkPortParameters(Seq(IntSinkParameters())) },
+      outputRequiresInput = false,
+      inputRequiresOutput = false))
+  }
   /** Source of Non-maskable Interrupt (NMI) input bundle to each tile. */
   val tileNMINode = BundleBridgeEphemeralNode[NMI]()
   val tileNMIIONodes: Seq[BundleBridgeSource[NMI]] = {
@@ -319,6 +327,10 @@ trait CanAttachTile {
           .getOrElse { context.seipNode.get }
     }
 
+    //    From PLIC: "vseip" (only if supervisor mode is enabled)
+    domain.crossIntIn(crossingParams.crossingType) :=
+      context.plicOpt .map { _.intnode }
+        .getOrElse { context.vseipNode.get }
     // 3. Local Interrupts ("lip") are required to already be synchronous to the Tile's clock.
     // (they are connected to domain.tile.intInwardNode in a seperate trait)
 
@@ -429,6 +441,12 @@ trait HasTilesModuleImp extends LazyModuleImp with HasPeripheryDebugModuleImp {
   seip.foreach { s =>
     s.zipWithIndex.foreach{ case (pin, i) =>
       (outer.seipNode.get.out(i)._1)(0) := pin
+    }
+  }
+  val vseip = if(outer.vseipNode.isDefined) Some(IO(Vec(outer.vseipNode.get.out.size, Bool()).asInput)) else None
+  vseip.foreach { s =>
+    s.zipWithIndex.foreach{ case (pin, i) =>
+      (outer.vseipNode.get.out(i)._1)(0) := pin
     }
   }
   val nmi = outer.tiles.zip(outer.tileNMIIONodes).zipWithIndex.map { case ((tile, n), i) => tile.tileParams.core.useNMI.option(n.makeIO(s"nmi_$i")) }
