@@ -94,7 +94,7 @@ class CLINT(params: CLINTParams, beatBytes: Int)(implicit p: Parameters) extends
       int(0) := ShiftRegister(ipi(i)(0), params.intStages) // msip
       int(1) := ShiftRegister(time.asUInt >= timecmp(i).asUInt, params.intStages) // mtip
       int(2) := ShiftRegister((time.asUInt >= vtimecmp(i).asUInt) && (vtimectl(i)(0) === UInt(1)), params.intStages) // utip
-      int(3) := ShiftRegister( (UIntToOH(vcpuid(i), width = vipiWidth) & vipi.asUInt) =/= UInt(0) , params.intStages)  //usip
+      int(3) := ShiftRegister( (UIntToOH(vcpuid(i), width = vipiWidth) & vipi.asUInt) =/= UInt(0) , params.intStages)  //vssip
     }
 
     /* 0000 msip hart 0

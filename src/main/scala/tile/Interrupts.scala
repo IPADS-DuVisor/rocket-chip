@@ -23,7 +23,7 @@ class TileInterrupts(implicit p: Parameters) extends CoreBundle()(p) {
   val mtip = Bool()
   val msip = Bool()
   val utip = Bool()
-  val usip = Bool()
+  val vssip = Bool()
   val meip = Bool()
   val seip = usingSupervisor.option(Bool())
   val vseip = Bool()
@@ -69,7 +69,7 @@ trait SinksExternalInterrupts { this: BaseTile =>
   def csrIntMap: List[Int] = {
     val nlips = tileParams.core.nLocalInterrupts
     val seip = if (usingSupervisor) Seq(9) else Nil
-    List(65535, 3, 7, 4, 0, 11) ++ seip ++ Seq(10) ++ List.tabulate(nlips)(_ + 16)
+    List(65535, 3, 7, 4, 2, 11) ++ seip ++ Seq(10) ++ List.tabulate(nlips)(_ + 16)
   }
 
   // go from flat diplomatic Interrupts to bundled TileInterrupts
@@ -79,7 +79,7 @@ trait SinksExternalInterrupts { this: BaseTile =>
       core.msip,
       core.mtip,
       core.utip,
-      core.usip,
+      core.vssip,
       core.meip)
 
     val seip = if (core.seip.isDefined) Seq(core.seip.get) else Nil
