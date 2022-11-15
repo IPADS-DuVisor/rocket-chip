@@ -21,7 +21,7 @@ case class DCacheParams(
     subWordBits: Option[Int] = None,
     replacementPolicy: String = "random",
     nTLBSets: Int = 1,
-    nTLBWays: Int = 32,
+    nTLBWays: Int = 32*4,
     nTLBBasePageSectors: Int = 4,
     nTLBSuperpages: Int = 4,
     tagECC: Option[String] = None,

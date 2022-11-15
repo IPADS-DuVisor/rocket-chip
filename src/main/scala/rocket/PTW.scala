@@ -218,10 +218,11 @@ class PTW(n: Int)(implicit edge: TLEdgeOut, p: Parameters) extends CoreModule()(
   }
 
   def makePTECache(s2: Boolean): (Bool, UInt) = {
-    val plru = new PseudoLRU(coreParams.nPTECacheEntries)
-    val valid = RegInit(0.U(coreParams.nPTECacheEntries.W))
-    val tags = Reg(Vec(coreParams.nPTECacheEntries, UInt((if (usingHypervisor) 1 + vaddrBits else paddrBits).W)))
-    val data = Reg(Vec(coreParams.nPTECacheEntries, UInt(width = ppnBits)))
+    val factor = if(s2) coreParams.nPTECacheEntries * 4 else coreParams.nPTECacheEntries;
+    val plru = new PseudoLRU(factor)
+    val valid = RegInit(0.U(factor.W))
+    val tags = Reg(Vec(factor, UInt((if (usingHypervisor) 1 + vaddrBits else paddrBits).W)))
+    val data = Reg(Vec(factor, UInt(width = ppnBits)))
     val can_hit =
       if (s2) count === r_hgatp_initial_count && aux_count < pgLevels-1 && r_req.vstage1 && stage2 && !stage2_final
       else count < pgLevels-1 && Mux(r_req.vstage1, stage2, !r_req.stage2)

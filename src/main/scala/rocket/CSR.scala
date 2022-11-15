@@ -218,6 +218,7 @@ class TraceAux extends Bundle {
 class CSRDecodeIO(implicit p: Parameters) extends CoreBundle {
   val inst = Input(UInt(iLen.W))
 
+  val csr = UInt(INPUT, CSR.ADDRSZ)
   def csr_addr = (inst >> 20)(CSR.ADDRSZ-1, 0)
 
   val fp_illegal = Bool(OUTPUT)
@@ -1436,7 +1437,7 @@ class CSRFile(
         val new_sip = new MIP().fromBits((read_mip & ~hs_delegable_interrupts) | (wdata & hs_delegable_interrupts))
         reg_mip.vssip := new_sip.vssip
         reg_mip.vstip := new_sip.vstip
-        reg_mip.vseip := new_sip.vseip
+        // reg_mip.vseip := new_sip.vseip
       }
       when (decoded_addr(CSRs.hcounteren)) { reg_hcounteren := wdata }
       when (decoded_addr(CSRs.hutimedelta)) { reg_htimedelta := wdata }
@@ -1494,14 +1495,14 @@ class CSRFile(
         val new_sip = new MIP().fromBits((read_mip & ~(hs_delegable_interrupts | s_delegable_interrupts)) | (wdata & (hs_delegable_interrupts | s_delegable_interrupts)))
         reg_mip.vssip := new_sip.vssip
         reg_mip.vstip := new_sip.vstip
-        reg_mip.vseip := new_sip.vseip
+        // reg_mip.vseip := new_sip.vseip
       }
 
       when (decoded_addr(CSRs.huip)) {
         val new_hip = new MIP().fromBits((read_mip & ~(hs_delegable_interrupts | s_delegable_interrupts)) | (wdata & (hs_delegable_interrupts | s_delegable_interrupts)))
         reg_mip.vssip := new_hip.vssip
         reg_mip.vstip := new_hip.vstip
-        reg_mip.vseip := new_hip.vseip
+        // reg_mip.vseip := new_hip.vseip
         reg_mip.usip  := new_hip.usip
         reg_mip.utip  := new_hip.utip
         reg_mip.ueip  := new_hip.ueip
